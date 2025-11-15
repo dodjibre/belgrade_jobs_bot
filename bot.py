@@ -24,7 +24,8 @@ creds_dict = json.loads(creds_json)
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 
 client = gspread.authorize(creds)
-sheet = client.open("Belgrade Jobs – CV Database").sheet1
+sheet = client.open_by_key("1SXzsGMhPsZqog1W-LjK6Ml0AB1rXbQMf6CNLXz9L7KY").sheet1
+
 
 # Conversation states
 FULLNAME, EMAIL, PHONE, CVLINK, JOBTYPE = range(5)
@@ -113,4 +114,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
