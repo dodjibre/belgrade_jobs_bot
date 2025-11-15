@@ -14,15 +14,7 @@ scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
-import json
-from oauth2client.service_account import ServiceAccountCredentials
-import os
-
-creds_json = os.getenv("GOOGLE_CREDENTIALS")
-creds_dict = json.loads(creds_json)
-
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("1SXzsGMhPsZqog1W-LjK6Ml0AB1rXbQMf6CNLXz9L7KY").sheet1
 
@@ -114,5 +106,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
