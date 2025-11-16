@@ -1,6 +1,9 @@
 services:
-  - type: worker
-    name: belgrade-jobs-bot
+  - name: jobsbot
+    type: worker
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python bot.py"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      GOOGLE_CREDS: ${GOOGLE_CREDS}
