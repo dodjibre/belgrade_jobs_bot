@@ -1,17 +1,12 @@
 services:
-  - type: worker
+  - type: web
     name: belgrade-jobs-bot
     env: python
-    region: frankfurt
-    plan: starter
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python bot.py"
-    runtime: "python3"
-    pythonVersion: "3.12.6"
+    plan: free
     envVars:
-      - key: TOKEN
-        sync: false
-      - key: SHEET_ID
+      - key: TELEGRAM_TOKEN
         sync: false
       - key: GOOGLE_CREDS
         sync: false
