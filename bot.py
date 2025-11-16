@@ -1,114 +1,57 @@
-import logging
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
-import gspread
-import json
 import os
-from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
+import json
+import gspread
+from google.oauth2 import service_account
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# === GOOGLE AUTH ===
+def init_gspread():
+    creds_json = os.environ.get("GOOGLE_CREDENTIALS")
 
-# Google Sheets Setup (USING RENDER SECRET)
-scope = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
+    if not creds_json:
+        raise Exception("ERROR: GOOGLE_CREDENTIALS env var is missing!")
 
-# Load credentials from environment variable
-creds_json = os.environ["GOOGLE_CREDS"]
-creds_dict = json.loads(creds_json)
+    creds_dict = json.loads(creds_json)
 
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-client = gspread.authorize(creds)
+    creds = service_account.Credentials.from_service_account_info(
+        creds_dict,
+        scopes=["https://www.googleapis.com/auth/spreadsheets"]
+    )
 
-# Open spreadsheet
+    client = gspread.authorize(creds)
+    return client
+
+client = init_gspread()
 sheet = client.open_by_key("1SXzsGMhPsZqog1W-LjK6Ml0AB1rXbQMf6CNLXz9L7KY").sheet1
 
-# Conversation states
-FULLNAME, EMAIL, PHONE, CVLINK, JOBTYPE = range(5)
 
-# START
+# === BOT HANDLERS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Welcome to *Belgrade Jobs Bot!* \n\n"
-        "Let's start your job application.\n\n"
-        "👉 First, type your FULL NAME:",
-        parse_mode="Markdown"
-    )
-    return FULLNAME
-
-async def fullname(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["fullname"] = update.message.text
-    await update.message.reply_text("📧 Enter your EMAIL:")
-    return EMAIL
-
-async def email(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["email"] = update.message.text
-    await update.message.reply_text("📱 Enter your PHONE NUMBER:")
-    return PHONE
-
-async def phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["phone"] = update.message.text
-    await update.message.reply_text("🔗 Paste a link to your CV (Google Drive / PDF link):")
-    return CVLINK
-
-async def cvlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["cvlink"] = update.message.text
-
-    keyboard = [["Game Presenter"], ["Other"]]
-    await update.message.reply_text(
-        "💼 Choose job type:",
-        reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-    )
-    return JOBTYPE
-
-async def jobtype(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["jobtype"] = update.message.text
-
-    # Save to Google Sheets
-    sheet.append_row([
-        context.user_data["fullname"],
-        context.user_data["email"],
-        context.user_data["phone"],
-        context.user_data["cvlink"],
-        context.user_data["jobtype"],
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ])
-
-    await update.message.reply_text(
-        "✅ *Application submitted successfully!*\n\n"
-        "We will contact you soon.",
-        parse_mode="Markdown"
-    )
-    return ConversationHandler.END
-
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ Application cancelled.")
-    return ConversationHandler.END
+    await update.message.reply_text("Zdravo! Pošalji mi svoj CV ili poruku i upisujem u tabelu!")
 
 
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    text = update.message.text
+
+    sheet.append_row([user.id, user.username, user.first_name, text])
+
+    await update.message.reply_text("Upisano! ✔️")
+
+
+# === MAIN ===
 def main():
-    TOKEN = "8399538096:AAGNFXXUAJknz3P4EbFMLfXep4sG5_8Fz_c"
+    token = os.environ.get("BOT_TOKEN")
+    if not token:
+        raise Exception("ERROR: Missing BOT_TOKEN env variable!")
 
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = ApplicationBuilder().token(token).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            FULLNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, fullname)],
-            EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, email)],
-            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone)],
-            CVLINK: [MessageHandler(filters.TEXT & ~filters.COMMAND, cvlink)],
-            JOBTYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, jobtype)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    app.add_handler(conv_handler)
-
+    print("Bot je pokrenut na Renderu...")
     app.run_polling()
 
 
